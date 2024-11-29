@@ -77,7 +77,7 @@ def generate_table_and_map(ip_address):
         df["Longitude"] = df["Longitude"].astype(float)
 
         map_center = [df["Latitude"].mean(), df["Longitude"].mean()]
-        ip_map = folium.Map(location=map_center, zoom_start=8)
+        ip_map = folium.Map(location=map_center, zoom_start=11)
 
         for _, row in df.iterrows():
             folium.Marker(
@@ -105,7 +105,7 @@ def generate_table_and_map(ip_address):
 
 # Streamlit app
 def main():
-    st.title("🌍📍 IP Geolocation Tracker")
+    st.title("🌍 IP Geolocation Tracker")
     st.markdown("Enter an IP address to fetch its geolocation data and visualize it on a map.")
 
     ip_address = st.text_input("Enter IP Address:")
@@ -116,5 +116,27 @@ def main():
         else:
             st.warning("Please enter a valid IP address.")
 
+def add_footer():
+    footer = """
+    <style>
+        /* Position the footer */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            text-align: left;
+            font-size: 12px;
+            padding: 10px;
+            color: #777;
+        }
+    </style>
+    <div class="footer">
+        © 2024 Made with 💚 by AZIZ.
+    </div>
+    """
+    st.markdown(footer, unsafe_allow_html=True)
+
 if __name__ == "__main__":
     main()
+    add_footer()
