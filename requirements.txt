@@ -1,0 +1,9 @@
+requests
+beautifulsoup4
+pandas
+folium
+tabulate
+selenium
+streamlit
+seleniumbase
+webdriver-manager
