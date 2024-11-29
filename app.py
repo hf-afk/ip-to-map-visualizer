@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 import folium
 from selenium import webdriver
@@ -5,10 +6,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import streamlit as st
 from io import BytesIO
 
-# Function to get IP geolocation data
+# Function to get IP geolocation data from all sections on the page
 def get_ip_data(ip_address):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -37,7 +37,7 @@ def get_ip_data(ip_address):
                     "ISP": section.find_element(By.CSS_SELECTOR, "span[class*='isp']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='isp']") else "N/A",
                     "Organization": section.find_element(By.CSS_SELECTOR, "span[class*='org']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='org']") else "N/A",
                     "Latitude": section.find_element(By.CSS_SELECTOR, "span[class*='lat']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='lat']") else "N/A",
-                    "Longitude": section.find_element(By.CSS_SELECTOR, "span[class*='long']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='long']") else "N/A"
+                    "Longitude": section.find_element(By.CSS_SELECTOR, "span[class*='long']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='long']") else "N/A",
                 }
                 ip_data_list.append(data)
 
@@ -48,82 +48,73 @@ def get_ip_data(ip_address):
 
     return ip_data_list
 
-# Function to generate map
-def generate_map(df):
-    df = df[df["Latitude"].apply(lambda x: x != "N/A") & df["Longitude"].apply(lambda x: x != "N/A")]
-    df["Latitude"] = df["Latitude"].astype(float)
-    df["Longitude"] = df["Longitude"].astype(float)
+# Function to generate table and map
+def generate_table_and_map(ip_address):
+    ip_data_list = get_ip_data(ip_address)
+    df = pd.DataFrame(ip_data_list)
 
-    map_center = [df["Latitude"].mean(), df["Longitude"].mean()]
-    ip_map = folium.Map(location=map_center, zoom_start=8)
+    if not df.empty:
+        # Rename for CSV export
+        df_csv = df.rename(columns={"Latitude": "Latitude (Decimal)", "Longitude": "Longitude (Decimal)"})
+        df_csv.columns = [f"Geolocation Data for {ip_address}" if col == "Source" else col for col in df_csv.columns]
 
-    for _, row in df.iterrows():
-        try:
-            lat, lon = float(row["Latitude"]), float(row["Longitude"])
+        # Display table
+        st.subheader(f"Geolocation Data for {ip_address}")
+        st.dataframe(df)
+
+        # Export to CSV
+        csv_data = df_csv.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Geolocation Data (CSV)",
+            data=csv_data,
+            file_name=f"{ip_address}_geolocation.csv",
+            mime="text/csv",
+        )
+
+        # Generate Map
+        df = df[df["Latitude"].apply(lambda x: x != "N/A") & df["Longitude"].apply(lambda x: x != "N/A")]
+        df["Latitude"] = df["Latitude"].astype(float)
+        df["Longitude"] = df["Longitude"].astype(float)
+
+        map_center = [df["Latitude"].mean(), df["Longitude"].mean()]
+        ip_map = folium.Map(location=map_center, zoom_start=8)
+
+        for _, row in df.iterrows():
             folium.Marker(
-                [lat, lon],
-                popup=(f"Source: {row['Source']}<br>"
-                       f"Country: {row['Country']}<br>Region: {row['Region']}<br>"
-                       f"City: {row['City']}<br>ISP: {row['ISP']}<br>Organization: {row['Organization']}"),
-                tooltip=f"{row['Source']}",
-                icon=folium.Icon(color="blue")
+                location=[row["Latitude"], row["Longitude"]],
+                popup=(f"Source: {row['Source']}<br>Country: {row['Country']}<br>"
+                       f"Region: {row['Region']}<br>City: {row['City']}<br>"
+                       f"ISP: {row['ISP']}<br>Organization: {row['Organization']}"),
+                tooltip=f"{row['Source']} - {row['Country']}",
             ).add_to(ip_map)
-        except ValueError:
-            pass
 
-    return ip_map
+        map_buffer = BytesIO()
+        ip_map.save(map_buffer, close_file=False)
+        map_html = map_buffer.getvalue().decode()
 
-# Streamlit App
+        st.subheader("Geolocation Map")
+        st.components.v1.html(map_html, height=500)
+        st.download_button(
+            label="Download Map (HTML)",
+            data=map_html,
+            file_name=f"{ip_address}_map.html",
+            mime="text/html",
+        )
+    else:
+        st.warning(f"No geolocation data found for {ip_address}.")
+
+# Streamlit app
 def main():
-    st.title("🌍 IP Geolocation Tracker")
-    st.markdown("Enter IP addresses to fetch and visualize geolocation data.")
+    st.title("🌍📍 IP Geolocation Tracker")
+    st.markdown("Enter an IP address to fetch its geolocation data and visualize it on a map.")
 
-    ip_addresses = st.text_area("Enter IP addresses (comma-separated):", "").split(",")
-    if st.button("Fetch Geolocation Data"):
-        ip_addresses = [ip.strip() for ip in ip_addresses if ip.strip()]
-        if ip_addresses:
-            with st.spinner("Fetching data..."):
-                all_ip_data = []
-                for ip in ip_addresses:
-                    ip_data_list = get_ip_data(ip)
-                    all_ip_data.extend(ip_data_list)
-
-                if all_ip_data:
-                    df = pd.DataFrame(all_ip_data)
-
-                    # Display table
-                    st.subheader("Geolocation Data")
-                    st.dataframe(df)
-
-                    # Prepare CSV for download
-                    df_csv = df.drop(columns=["Latitude", "Longitude"])
-                    csv_content = df_csv.to_csv(index=False, header=[f"Geolocation Data for {ip_addresses[0]}"]).encode('utf-8')
-                    st.download_button(
-                        label="Download Data (CSV)",
-                        data=csv_content,
-                        file_name="geolocation_data.csv",
-                        mime="text/csv"
-                    )
-
-                    # Generate and display map
-                    st.subheader("Geolocation Map")
-                    ip_map = generate_map(df)
-                    map_file = BytesIO()
-                    ip_map.save(map_file, close_file=False)
-                    map_html = map_file.getvalue().decode()
-                    st.components.v1.html(map_html, height=500)
-
-                    # Download map as HTML
-                    st.download_button(
-                        label="Download Map (HTML)",
-                        data=map_file.getvalue(),
-                        file_name="ip_geolocation_map.html",
-                        mime="text/html"
-                    )
-                else:
-                    st.warning("No data found for the entered IP addresses.")
+    ip_address = st.text_input("Enter IP Address:")
+    if st.button("Fetch Geolocation"):
+        if ip_address:
+            with st.spinner(f"Fetching geolocation data for {ip_address}..."):
+                generate_table_and_map(ip_address)
         else:
-            st.warning("Please enter at least one IP address.")
+            st.warning("Please enter a valid IP address.")
 
 if __name__ == "__main__":
     main()
