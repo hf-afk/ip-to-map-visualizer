@@ -7,4 +7,4 @@ selenium
 streamlit
 seleniumbase
 webdriver-manager
-cloudscraper
+selenium-stealth
