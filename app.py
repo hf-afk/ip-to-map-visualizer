@@ -8,20 +8,20 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium_stealth import stealth
 from io import BytesIO
+import time
 
 # Function to get IP geolocation data from all sections on the page
 def get_ip_data(ip_address):
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")  # Use the modern headless mode
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
     # Add a modern user-agent
     chrome_options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.70 Safari/537.36"
     )
-
-    url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
 
     # Initialize WebDriver
     driver = webdriver.Chrome(options=chrome_options)
@@ -37,11 +37,26 @@ def get_ip_data(ip_address):
         fix_hairline=True,
     )
 
+    # Open a landing page to simulate browser history
+    driver.get("https://www.google.com")
+    time.sleep(2)
+
+    # Navigate to the target URL
+    url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
     driver.get(url)
+
+    # Wait and ensure cookies are set
+    time.sleep(2)
+    cookies = driver.get_cookies()
+
+    # Simulate some user interactions
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(2)
+    driver.execute_script("window.scrollTo(0, 0);")
 
     ip_data_list = []
     try:
-        data_sections = WebDriverWait(driver, 10).until(
+        data_sections = WebDriverWait(driver, 15).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.col_12_of_12"))
         )
 
