@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium_stealth import stealth
 from io import BytesIO
 
 # Function to get IP geolocation data from all sections on the page
@@ -15,14 +16,27 @@ def get_ip_data(ip_address):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    # Add a browser user-agent string
+    # Add a modern user-agent
     chrome_options.add_argument(
-    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.5481.177 Safari/537.36"
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.70 Safari/537.36"
     )
 
     url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
 
+    # Initialize WebDriver
     driver = webdriver.Chrome(options=chrome_options)
+
+    # Apply Selenium Stealth
+    stealth(
+        driver,
+        languages=["en-US", "en"],
+        vendor="Google Inc.",
+        platform="Win32",
+        webgl_vendor="Intel Inc.",
+        renderer="Intel Iris OpenGL Engine",
+        fix_hairline=True,
+    )
+
     driver.get(url)
 
     ip_data_list = []
@@ -33,7 +47,7 @@ def get_ip_data(ip_address):
 
         for section in data_sections:
             source = section.find_element(By.CSS_SELECTOR, "h4.geo-service a").text if section.find_elements(By.CSS_SELECTOR, "h4.geo-service a") else "N/A"
-            if source != 'N/A':
+            if source != "N/A":
                 data = {
                     "Source": source,
                     "Country": section.find_element(By.CSS_SELECTOR, "span[class*='country']").text if section.find_elements(By.CSS_SELECTOR, "span[class*='country']") else "N/A",
