@@ -15,6 +15,11 @@ def get_ip_data(ip_address):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
+    # Add a browser user-agent string
+    chrome_options.add_argument(
+    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.5481.177 Safari/537.36"
+    )
+
     url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
 
     driver = webdriver.Chrome(options=chrome_options)
