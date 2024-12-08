@@ -7,3 +7,4 @@ selenium
 streamlit
 seleniumbase
 webdriver-manager
+cloudscraper
