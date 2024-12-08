@@ -7,33 +7,18 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from io import BytesIO
-import cloudscraper
-
-# Function to fetch the HTML content of the webpage using cloudscraper
-def fetch_url_content(url):
-    scraper = cloudscraper.create_scraper()  # Create a cloudscraper instance
-    response = scraper.get(url)
-    if response.status_code == 200:
-        return response.text
-    else:
-        raise Exception(f"Failed to fetch the page. Status code: {response.status_code}")
-
 
 # Function to get IP geolocation data from all sections on the page
 def get_ip_data(ip_address):
-    # URL to query geolocation data for the IP address
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
     url = f"https://www.iplocation.net/search?cx=partner-pub-1026064395378929%3A2796854705&cof=FORID%3A10&ie=UTF-8&q={ip_address}&sa=Search"
 
-    # Fetch the page content using cloudscraper
-    try:
-        page_content = fetch_url_content(url)
-    except Exception as e:
-        st.error(f"Error retrieving data for IP {ip_address}: {e}")
-        return []
-
-    # Use Selenium to parse the content (optional if necessary)
     driver = webdriver.Chrome(options=chrome_options)
-    driver.get("data:text/html;charset=utf-8," + page_content)
+    driver.get(url)
 
     ip_data_list = []
     try:
@@ -57,12 +42,11 @@ def get_ip_data(ip_address):
                 ip_data_list.append(data)
 
     except Exception as e:
-        st.error(f"Error parsing data for IP {ip_address}: {e}")
+        st.error(f"Error retrieving data for IP {ip_address}: {e}")
     finally:
         driver.quit()
 
     return ip_data_list
-
 
 # Function to generate table and map
 def generate_table_and_map(ip_address):
