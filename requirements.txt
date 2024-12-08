@@ -8,3 +8,4 @@ streamlit
 seleniumbase
 webdriver-manager
 selenium-stealth
+undetected-chromedriver
