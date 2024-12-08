@@ -1,64 +1,69 @@
 import streamlit as st
 import pandas as pd
 import folium
-from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium_stealth import stealth
+from selenium.webdriver.common.action_chains import ActionChains
 from io import BytesIO
 import time
+import random
 
-# Function to get IP geolocation data from all sections on the page
+# Function to initialize the driver
+def initialize_driver():
+    options = uc.ChromeOptions()
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.70 Safari/537.36")
+    options.add_argument("--headless=new")  # Use `new` headless mode
+    driver = uc.Chrome(options=options)
+    return driver
+
+# Function to simulate random human-like activity
+def simulate_human_activity(driver, delay=3):
+    actions = ActionChains(driver)
+    for _ in range(random.randint(2, 5)):  # Random number of interactions
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(random.uniform(1, 2))
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(random.uniform(1, 2))
+        if random.choice([True, False]):
+            links = driver.find_elements(By.TAG_NAME, "a")
+            if links:
+                random.choice(links).click()
+                time.sleep(delay)
+                driver.back()
+
+# Function to handle cookies
+def inject_cookies(driver, cookies):
+    for cookie in cookies:
+        driver.add_cookie(cookie)
+
+# Function to get IP geolocation data
 def get_ip_data(ip_address):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")  # Use the modern headless mode
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    driver = initialize_driver()
 
-    # Add a modern user-agent
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.70 Safari/537.36"
-    )
-
-    # Initialize WebDriver
-    driver = webdriver.Chrome(options=chrome_options)
-
-    # Apply Selenium Stealth
-    stealth(
-        driver,
-        languages=["en-US", "en"],
-        vendor="Google Inc.",
-        platform="Win32",
-        webgl_vendor="Intel Inc.",
-        renderer="Intel Iris OpenGL Engine",
-        fix_hairline=True,
-    )
-
-    # Open a landing page to simulate browser history
-    driver.get("https://www.google.com")
-    time.sleep(2)
-
-    # Navigate to the target URL
+    # Define the target URL
     url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
     driver.get(url)
 
-    # Wait and ensure cookies are set
-    time.sleep(2)
-    cookies = driver.get_cookies()
+    # Simulate human activity to pass Cloudflare checks
+    simulate_human_activity(driver)
 
-    # Simulate some user interactions
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(2)
-    driver.execute_script("window.scrollTo(0, 0);")
+    # Wait for Cloudflare check to complete
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.col_12_of_12")))
+    except Exception as e:
+        st.error(f"Cloudflare verification failed: {e}")
+        driver.quit()
+        return []
 
+    # Extract geolocation data
     ip_data_list = []
     try:
-        data_sections = WebDriverWait(driver, 15).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.col_12_of_12"))
-        )
+        data_sections = driver.find_elements(By.CSS_SELECTOR, "div.col_12_of_12")
 
         for section in data_sections:
             source = section.find_element(By.CSS_SELECTOR, "h4.geo-service a").text if section.find_elements(By.CSS_SELECTOR, "h4.geo-service a") else "N/A"
@@ -153,7 +158,6 @@ def main():
 def add_footer():
     footer = """
     <style>
-        /* Position the footer */
         .footer {
             position: fixed;
             bottom: 0;
