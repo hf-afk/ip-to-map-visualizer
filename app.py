@@ -15,7 +15,7 @@ def get_ip_data(ip_address):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    url = f"https://www.iplocation.net/search?cx=partner-pub-1026064395378929%3A2796854705&cof=FORID%3A10&ie=UTF-8&q={ip_address}&sa=Search"
+    url = f"https://www.iplocation.net/search?ie=UTF-8&q={ip_address}&sa=Search"
 
     driver = webdriver.Chrome(options=chrome_options)
     driver.get(url)
